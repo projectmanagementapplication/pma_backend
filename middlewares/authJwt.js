@@ -1,0 +1,46 @@
+const jwt = require('jsonwebtoken');
+const config = require('../configs/auth.config');
+const User = require('../model/user.model');
+const constants = require('../utils/constants');
+
+verifyToken = (req, res, next) => {
+	let token = req.headers['x-access-token'];
+
+	if (!token) {
+		return res.status(401).send({
+			message: 'No token has been provided'
+		});
+	}
+
+	jwt.verify(token, config.secretKey, (err, decoded) => {
+		if (err) {
+			return res.status(401).send({
+				message: 'Request cannot be authenticated. Token is invalid'
+			});
+		}
+
+		req.userName = decoded.id;
+
+		next();
+	});
+};
+
+isAdmin = async (req, res, next) => {
+	const user = await User.findOne({
+		userName: req.userName
+	});
+
+	if (user && user.userType === constants.userType.admin) {
+		next();
+	} else {
+		return res.status(403).send({
+			message: 'Only admins are allowed this operation'
+		});
+	}
+};
+
+const authJwt = {
+	verifyToken: verifyToken,
+	isAdmin: isAdmin
+};
+module.exports = authJwt;
